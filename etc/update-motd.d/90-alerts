@@ -1,0 +1,26 @@
+#!/bin/bash
+source /etc/update-motd.d/00-lib.sh
+
+WHITELIST_FILE="/etc/motd.d/ip_whitelist.conf"
+if [ -f "$WHITELIST_FILE" ]; then
+    mapfile -t WHITE_LIST < "$WHITELIST_FILE"
+fi
+
+# --- 使用更健壮的命令获取IP ---
+LAST_IP=$(journalctl -u ssh --grep "Accepted" -o cat | head -n -1 | tail -n 1 | awk -F 'from ' '{print $2}' | awk '{print $1}')
+# --- 修改结束 ---
+
+[ -z "$LAST_IP" ] && exit 0
+
+in_whitelist=false
+for ip in "${WHITE_LIST[@]}"; do
+    [[ -z "$ip" || "$ip" =~ ^# ]] && continue
+    if [[ "$LAST_IP" == "$ip" ]]; then
+        in_whitelist=true
+        break
+    fi
+done
+
+if ! $in_whitelist; then
+    echo -e "${RED_BG_WHITE_TEXT}  ALERT: Login from untrusted IP: $LAST_IP  ${NC}\n"
+fi

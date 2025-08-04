@@ -1,0 +1,22 @@
+#!/bin/bash
+source /etc/update-motd.d/00-lib.sh
+
+echo -e "Network Interfaces:"
+for iface in $(ls /sys/class/net | grep -v '^lo$'); do
+    state=$(cat "/sys/class/net/$iface/operstate" 2>/dev/null || echo "unknown")
+    state_c=$(color_state "$state")
+
+    ipv4=$(ip -o -4 addr show dev "$iface" | awk '{print $4}')
+    ipv6=$(ip -o -6 addr show dev "$iface" | awk '!/fe80::/ {print $4}')
+
+    # 从预计算的文件中读取速度
+    speed=$(cat "/run/motd_data/net_speed_${iface}" 2>/dev/null || echo "n/a")
+
+    if [[ -n "$ipv4" ]]; then
+        echo -e "  IPv4: $ipv4 [$state_c] $speed"
+    fi
+    if [[ -n "$ipv6" ]]; then
+        echo -e "  IPv6: $ipv6 [$state_c] $speed"
+    fi
+done
+echo

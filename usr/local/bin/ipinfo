@@ -1,0 +1,52 @@
+#!/bin/bash
+# ipinfo <IP>
+# 查询 IP 的地理/ASN 信息（IPv4+IPv6 自动识别）
+DB_DIR="/usr/share/GeoIP"
+CITY_V4="$DB_DIR/geolite2-city-ipv4.mmdb"
+CITY_V6="$DB_DIR/geolite2-city-ipv6.mmdb"
+ASN_DB="$DB_DIR/asn.mmdb"
+
+ip="$1"
+[ -z "$ip" ] && echo "用法: ipinfo <IP>" && exit 1
+
+# 判断 IPv4 / IPv6
+if [[ "$ip" =~ : ]]; then
+    city_db="$CITY_V6"
+else
+    city_db="$CITY_V4"
+fi
+
+# 查询 City 信息
+city_json=$(mmdblookup --file "$city_db" --ip "$ip")
+asn_json=$(mmdblookup --file "$ASN_DB" --ip "$ip")
+
+# 提取字段（去掉双引号）
+country=$(echo "$city_json" | grep '"country_code"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+city=$(echo "$city_json" | grep '"city"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+state1=$(echo "$city_json" | grep '"state1"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+postcode=$(echo "$city_json" | grep '"postcode"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+latitude=$(echo "$city_json" | grep '"latitude"' -A1 | tail -n1 | awk '{print $1}')
+longitude=$(echo "$city_json" | grep '"longitude"' -A1 | tail -n1 | awk '{print $1}')
+timezone=$(echo "$city_json" | grep '"timezone"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+
+asn=$(echo "$asn_json" | grep '"autonomous_system_number"' -A1 | tail -n1 | awk '{print $1}')
+org=$(echo "$asn_json" | grep '"autonomous_system_organization"' -A1 | tail -n1 | sed 's/"//g')
+
+# 处理空字段
+[ -z "$city" ] && city="-"
+[ -z "$state1" ] && state1="-"
+[ -z "$postcode" ] && postcode="-"
+[ -z "$latitude" ] && latitude="-"
+[ -z "$longitude" ] && longitude="-"
+[ -z "$timezone" ] && timezone="-"
+[ -z "$asn" ] && asn="-"
+[ -z "$org" ] && org="-"
+
+echo "IP: $ip"
+echo "Country: $country"
+echo "City: $city"
+echo "State: $state1"
+echo "Postcode: $postcode"
+echo "Location: $latitude / $longitude"
+echo "Timezone: $timezone"
+echo "ASN: AS$asn $org"

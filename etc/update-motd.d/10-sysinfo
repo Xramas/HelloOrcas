@@ -1,0 +1,4 @@
+#!/bin/bash
+echo "Host: $(hostname -f)"
+echo "OS: $(lsb_release -d | cut -f2)"
+echo "Kernel: $(uname -r)"

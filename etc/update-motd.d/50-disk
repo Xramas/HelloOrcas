@@ -1,0 +1,16 @@
+#!/bin/bash
+# ===== 50-disk =====
+
+echo -e "Disk Usage:"
+
+# 使用 -x 参数排除所有我们不关心的虚拟和临时文件系统
+# 同时使用 sort -V 来确保 /dev/vda10 等设备排序正确
+header=$(df -h --output=source,pcent,size,used,avail,target -x tmpfs -x devtmpfs -x udev -x efivarfs | head -n1)
+data=$(df -h --output=source,pcent,size,used,avail,target -x tmpfs -x devtmpfs -x udev -x efivarfs | tail -n +2 | sort -V -k1)
+
+# 如果过滤后有数据，则显示
+if [ -n "$data" ]; then
+    echo "$header"
+    echo "$data"
+fi
+echo

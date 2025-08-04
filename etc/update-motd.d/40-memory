@@ -1,0 +1,24 @@
+#!/bin/bash
+source /etc/update-motd.d/00-lib.sh
+
+read -r mem_used mem_total <<< "$(free -m | awk '/Mem:/ {print $3, $2}')"
+read -r swap_used swap_total <<< "$(free -m | awk '/Swap:/ {print $3, $2}')"
+
+format_size() {
+    local size=$1
+    if (( size >= 1024 )); then
+        printf "%.1fG" "$(echo "$size / 1024" | bc -l)"
+    else
+        printf "%dM" "$size"
+    fi
+}
+
+mem_used_fmt=$(format_size "$mem_used")
+mem_total_fmt=$(format_size "$mem_total")
+swap_used_fmt=$(format_size "$swap_used")
+swap_total_fmt=$(format_size "$swap_total")
+
+mem_percent=$((100 * mem_used / (mem_total > 0 ? mem_total : 1)))
+swap_percent=$((100 * swap_used / (swap_total > 0 ? swap_total : 1)))
+
+echo -e "Memory:      RAM $(format_size "$mem_used") / $(format_size "$mem_total") (Used: $(colorize "$mem_percent")) | Swap $(format_size "$swap_used") / $(format_size "$swap_total") (Used: $(colorize "$swap_percent"))"

@@ -1,0 +1,29 @@
+#!/bin/bash
+source /etc/update-motd.d/00-lib.sh
+
+echo "System Health:"
+
+# 1. 检查失败的 Systemd 服务
+FAILED_UNITS=$(systemctl --failed --no-legend | wc -l)
+if (( FAILED_UNITS > 0 )); then
+    echo -e "  ${RED}Systemd: ${FAILED_UNITS} service(s) failed!${NC}"
+else
+    echo -e "  ${GREEN}Systemd: All services running normally.${NC}"
+fi
+
+# 2. 检查待处理的更新 (Debian/Ubuntu)
+UPDATES_FILE="/var/lib/update-notifier/updates-available"
+if [ -f "$UPDATES_FILE" ]; then
+    UPDATES_COUNT=$(grep -c . "$UPDATES_FILE")
+    if (( UPDATES_COUNT > 0 )); then
+        echo -e "  ${YELLOW}Updates: ${UPDATES_COUNT} packages can be updated.${NC}"
+    fi
+fi
+
+# 3. 检查 Docker 容器 (如果 Docker 已安装)
+if check_command "docker" >/dev/null; then
+    RUNNING=$(docker ps -q | wc -l)
+    TOTAL=$(docker ps -aq | wc -l)
+    echo -e "  Docker: ${RUNNING} of ${TOTAL} containers are running."
+fi
+echo

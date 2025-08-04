@@ -1,0 +1,3 @@
+#!/bin/bash
+echo "Uptime: $(uptime -p) | Load: $(uptime | awk -F'load average:' '{print $2}')"
+echo

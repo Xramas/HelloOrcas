@@ -1,0 +1,17 @@
+#!/bin/bash
+source /etc/update-motd.d/00-lib.sh
+
+# 从预计算的文件中读取CPU使用率
+CPU_USAGE=$(cat /run/motd_data/cpu_usage 2>/dev/null || echo 0)
+
+# 获取 CPU 型号
+RAW_MODEL=$(lscpu | grep 'Model name' | cut -d: -f2 | xargs)
+if [[ "$RAW_MODEL" == QEMU* ]]; then
+    CPU_MODEL=$(echo "$RAW_MODEL" | sed -E 's/ pc-[^ ]+//g')
+else
+    CPU_MODEL="$RAW_MODEL"
+fi
+CPU_CORES=$(nproc)
+
+# 输出
+echo -e "CPU:         $CPU_MODEL ($CPU_CORES cores) | Usage: $(colorize "$CPU_USAGE")"

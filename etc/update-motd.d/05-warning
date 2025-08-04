@@ -1,0 +1,13 @@
+#!/bin/bash
+CYAN='\033[1;36m'; NC='\033[0m'
+echo -e "${CYAN}"
+cat <<'EOF'
+   ____  ____  _________   _____
+  / __ \/ __ \/ ____/   | / ___/
+ / / / / /_/ / /   / /| | \__ \
+/ /_/ / _, _/ /___/ ___ |___/ /
+\____/_/ |_|\____/_/  |_/____/
+EOF
+echo -e "${NC}"
+echo "Authorized access only. All activity may be monitored and reported."
+echo

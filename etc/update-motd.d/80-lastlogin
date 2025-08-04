@@ -1,0 +1,72 @@
+#!/bin/bash
+RED='\033[0;31m'; GREEN='\033[0;32m'; NC='\033[0m'
+
+# ===== 替换为我们已经验证过的 journalctl 命令 =====
+LAST_IP=$(journalctl -u ssh --grep "Accepted" -o cat | head -n -1 | tail -n 1 | awk -F 'from ' '{print $2}' | awk '{print $1}')
+# ===== 替换结束 =====
+
+[ -z "$LAST_IP" ] && exit 0
+
+DB_DIR="/usr/share/GeoIP"
+CITY_DB="$DB_DIR/geolite2-city-ipv4.mmdb"
+[ "$LAST_IP" != "${LAST_IP#*:}" ] && CITY_DB="$DB_DIR/geolite2-city-ipv6.mmdb" # IPv6
+ASN_DB="$DB_DIR/asn.mmdb"
+
+# 检查数据库文件是否存在，如果不存在则静默退出
+if [ ! -f "$CITY_DB" ] || [ ! -f "$ASN_DB" ]; then
+    exit 0
+fi
+
+# 运行查询并隐藏可能的错误输出
+city_json=$(mmdblookup --file "$CITY_DB" --ip "$LAST_IP" 2>/dev/null)
+asn_json=$(mmdblookup --file "$ASN_DB" --ip "$LAST_IP" 2>/dev/null)
+
+# 如果查询结果为空，则静默退出
+if [ -z "$city_json" ]; then
+    exit 0
+fi
+
+# ===== 使用你提供的、确认可行的原始解析逻辑 =====
+COUNTRY=$(echo "$city_json" | grep '"country_code"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+CITY=$(echo "$city_json" | grep '"city"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+STATE=$(echo "$city_json" | grep '"state1"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+LAT=$(echo "$city_json" | grep '"latitude"' -A1 | tail -n1 | awk '{print $1}')
+LON=$(echo "$city_json" | grep '"longitude"' -A1 | tail -n1 | awk '{print $1}')
+TIMEZONE=$(echo "$city_json" | grep '"timezone"' -A1 | tail -n1 | awk '{print $1}' | tr -d '"')
+ASN=$(echo "$asn_json" | grep '"autonomous_system_number"' -A1 | tail -n1 | awk '{print $1}' | tr -d ',')
+ORG=$(echo "$asn_json" | grep '"autonomous_system_organization"' -A1 | tail -n1 | sed 's/^[[:space:]]*"//g; s/" <.*$//g')
+# ===== 解析逻辑结束 =====
+
+# 国家彩色
+if [[ "$COUNTRY" != "JP" && "$COUNTRY" != "CN" ]]; then
+    COUNTRY_DISPLAY="${RED}${COUNTRY}${NC}"
+else
+    COUNTRY_DISPLAY="${GREEN}${COUNTRY}${NC}"
+fi
+
+# ===== 这里是修改的核心逻辑 =====
+# 使用数组来动态构建位置字符串
+LOCATION_PARTS=()
+# 先添加国家
+[[ -n "$COUNTRY_DISPLAY" ]] && LOCATION_PARTS+=("$COUNTRY_DISPLAY")
+
+# 判断省份和城市是否相同
+if [[ -n "$STATE" && "$STATE" == "$CITY" ]]; then
+    # 如果相同且不为空, 只添加城市
+    [[ -n "$CITY" ]] && LOCATION_PARTS+=("$CITY")
+else
+    # 如果不同, 则分别添加
+    [[ -n "$STATE" ]] && LOCATION_PARTS+=("$STATE")
+    [[ -n "$CITY" ]] && LOCATION_PARTS+=("$CITY")
+fi
+
+# 使用 ", " 作为分隔符将数组元素连接成一个字符串
+LOCATION=$(IFS=', '; echo "${LOCATION_PARTS[*]}")
+# ===== 逻辑修改结束 =====
+
+echo -e "Last login from: $LAST_IP"
+echo -e "IP Info:"
+echo -e "  Location:  $LOCATION" # <--- 使用新生成的 LOCATION 变量
+echo -e "  Lat/Lon:   $LAT / $LON"
+echo -e "  Timezone:  $TIMEZONE"
+echo -e "  ASN:       AS$ASN $ORG"
